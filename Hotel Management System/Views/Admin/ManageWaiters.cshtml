@@ -1,0 +1,94 @@
+﻿@model IEnumerable<Hotel_Management_System.Models.ApplicationUser> // Change to IdentityUser if applicable
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Manage Waiters";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="font-weight-bold m-0">🏃 Floor Staff Directory</h2>
+        <small class="text-muted">Register new accounts or remove crew members from system access permissions.</small>
+    </div>
+    <button class="btn btn-pink py-2 px-4" data-bs-toggle="modal" data-bs-target="#addWaiterModal">
+        + Register New Waiter
+    </button>
+</div>
+
+<div class="card border-0 shadow-sm p-4" style="border-radius: 12px; background: white;">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle m-0">
+            <thead class="table-light small text-secondary">
+                <tr>
+                    <th>Staff Member Profile</th>
+                    <th>Email Address / Username</th>
+                    <th>Account Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="small">
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">No active waiter accounts found in the system registry.</td>
+                    </tr>
+                }
+                @foreach (var waiter in Model)
+                {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center" style="gap: 12px;">
+                                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; border: 1px solid var(--border-color);">
+                                    👤
+                                </div>
+                                <div>
+                                    <strong class="text-dark d-block">@waiter.UserName</strong>
+                                    <small class="text-muted font-xs">ID: @waiter.Id.Substring(0, 8)...</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="text-dark">@waiter.Email</span></td>
+                        <td>
+                            <span class="badge bg-success-subtle text-success">
+                                Active & Authorized
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <form asp-action="DeleteWaiter" method="post" onsubmit="return confirm('Are you completely sure you want to remove this waiter account? All access will be revoked.');" class="d-inline">
+                                <input type="hidden" name="id" value="@waiter.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-3">
+                                    Remove Staff
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="addWaiterModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow" style="border-radius: 16px;">
+            <div class="modal-header">
+                <h5 class="modal-title font-weight-bold">Register Floor Staff Account</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="CreateWaiter" method="post">
+                <div class="modal-body small">
+                    <div class="form-group mb-3">
+                        <label class="form-label fw-bold text-secondary">EMAIL / USERNAME</label>
+                        <input type="email" name="email" class="form-control" placeholder="waitername@@hotel.com" required />
+                    </div>
+                    <div class="form-group mb-2">
+                        <label class="form-label fw-bold text-secondary">ASSIGN OPERATIONAL PASSWORD</label>
+                        <input type="password" name="password" class="form-control" placeholder="Minimum 6 characters with a capitalized letter" required />
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="submit" class="btn btn-pink w-100 py-2">Create & Authorize Waiter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

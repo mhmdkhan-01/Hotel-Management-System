@@ -1,0 +1,109 @@
+﻿@model Hotel_Management_System.ViewModels.AdminDashboardViewModel
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Admin Management Dashboard";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="font-weight-bold m-0">Performance Overview</h2>
+    <span class="badge bg-white text-dark border p-2 shadow-sm">📍 Live Operational Mode (Local Network)</span>
+</div>
+
+<!-- Main Business Analytics Cards -->
+<div class="dashboard-grid">
+    <div class="stat-card">
+        <h3>Earnings Today</h3>
+        <div class="value">Rs. @Model.TotalEarningsToday</div>
+    </div>
+    <div class="stat-card" style="border-left-color: var(--primary-pink);">
+        <h3>Completed Sales</h3>
+        <div class="value">@Model.TotalOrdersToday Orders</div>
+    </div>
+    <div class="stat-card" style="border-left-color: #333;">
+        <h3>Kitchen Output</h3>
+        <div class="value">@Model.TotalItemsSoldToday Items</div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Active Floor Tables Monitoring Panel -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: white;">
+            <h5 class="font-weight-bold text-dark mb-3">Live Active Table Sessions</h5>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle m-0">
+                    <thead class="table-light small text-secondary">
+                        <tr>
+                            <th>Table</th>
+                            <th>Session Status</th>
+                            <th>Payment Intent</th>
+                            <th>Running Bill</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="small">
+                        @if (!Model.RecentActiveOrders.Any())
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">No active tables ordering right now.</td>
+                            </tr>
+                        }
+                        @foreach (var order in Model.RecentActiveOrders)
+                        {
+                            <tr>
+                                <td><span class="fw-bold text-dark">Table @order.Table?.TableNumber</span></td>
+                                <td>
+                                    <span class="badge @(order.Status == SessionStatus.Finished ? "bg-warning text-dark" : "bg-success text-white")">
+                                        @order.Status
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="fw-bold @(order.PreferredPayment != PaymentMethod.None ? "text-primary" : "text-muted")">
+                                        @(order.PreferredPayment == PaymentMethod.None ? "Ordering..." : order.PreferredPayment.ToString())
+                                    </span>
+                                </td>
+                                <td class="fw-bold">Rs. @order.TotalBill</td>
+                                <td class="text-end">
+                                    @if (order.Status == SessionStatus.Finished)
+                                    {
+                                        <form asp-action="CloseTableSession" method="post" class="d-inline">
+                                            <input type="hidden" name="orderId" value="@order.Id" />
+                                            <button type="submit" class="btn btn-sm btn-pink py-1 px-3">Received Payment (Clear Table)</button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted font-xs">Awaiting Customer Checkout</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory / Grocery Insights Section -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: white;">
+            <h5 class="font-weight-bold text-dark mb-3">Top Moving Items (Grocery Insight)</h5>
+            <ul class="list-group list-group-flush">
+                @if (!Model.TopSoldItems.Any())
+                {
+                    <li class="list-group-item text-center text-muted border-0 py-3 small">Data accumulates as orders get served.</li>
+                }
+                @foreach (var top in Model.TopSoldItems)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 py-2 small">
+                        <div>
+                            <span class="fw-bold text-dark d-block">@top.ItemName</span>
+                            <small class="text-muted">Sold: @top.TotalQuantity units</small>
+                        </div>
+                        <span class="badge bg-light text-dark border">Rs. @top.TotalRevenue</span>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>

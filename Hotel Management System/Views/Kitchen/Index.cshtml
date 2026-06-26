@@ -1,0 +1,77 @@
+﻿@model IEnumerable<Hotel_Management_System.Models.OrderItem>
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Kitchen Preparation Queue";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="font-weight-bold m-0">🍳 Active Kitchen Queue</h2>
+        <small class="text-muted">Items are sorted oldest-to-newest for perfect sequential cooking.</small>
+    </div>
+    <span class="badge bg-dark text-white p-2">⏱ Auto-refreshing active</span>
+</div>
+
+<div class="row g-3">
+    @if (!Model.Any())
+    {
+        <div class="col-12 text-center py-5">
+            <div class="card p-5 border-0 shadow-sm" style="border-radius:12px;">
+                <h4 class="text-muted m-0">🎉 All clear! No items currently in the queue.</h4>
+            </div>
+        </div>
+    }
+
+    @foreach (var item in Model)
+    {
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm p-3 h-100 d-flex flex-column"
+                 style="border-radius: 12px; border-top: 5px solid @(item.Status == ItemStatus.Cooking ? "var(--accent-pink)" : "#6c757d"); background: white;">
+
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <span class="badge bg-light text-dark border font-weight-bold">Table @item.Order?.Table?.TableNumber</span>
+                    <small class="text-secondary fw-semibold">⏱ @item.CreatedAt.ToString("hh:mm tt")</small>
+                </div>
+
+                <div class="my-2 flex-grow-1">
+                    <h4 class="font-weight-bold text-dark m-0">@item.Quantity x @item.MenuItem?.Name</h4>
+
+                    @if (!string.IsNullOrEmpty(item.CustomerComment))
+                    {
+                        <div class="mt-2 p-2 bg-light rounded text-danger small font-weight-bold" style="border-left: 3px solid red;">
+                            ⚠️ Note: "@item.CustomerComment"
+                        </div>
+                    }
+                </div>
+
+                <div class="pt-3 border-top mt-auto d-flex gap-2">
+                    @if (item.Status == ItemStatus.Ordered)
+                    {
+                        <form asp-action="UpdateItemStatus" method="post" class="w-100">
+                            <input type="hidden" name="orderItemId" value="@item.Id" />
+                            <input type="hidden" name="newStatus" value="@ItemStatus.Cooking" />
+                            <button type="submit" class="btn btn-outline-secondary btn-sm w-100 py-2 fw-bold">🔥 Start Cooking</button>
+                        </form>
+                    }
+                    else if (item.Status == ItemStatus.Cooking)
+                    {
+                        <form asp-action="UpdateItemStatus" method="post" class="w-100">
+                            <input type="hidden" name="orderItemId" value="@item.Id" />
+                            <input type="hidden" name="newStatus" value="@ItemStatus.Cooked" />
+                            <button type="submit" class="btn btn-pink btn-sm w-100 py-2 fw-bold">✅ Mark as Cooked</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // Automatically check the server for new orders every 30 seconds
+        setInterval(function() {
+            location.reload();
+        }, 30000);
+    </script>
+}

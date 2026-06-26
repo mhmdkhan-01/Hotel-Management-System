@@ -1,0 +1,168 @@
+﻿@model Hotel_Management_System.Models.Order
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Session Status";
+    ViewData["HeaderTitle"] = "Active Table Order Summary";
+}
+
+<div class="card border-0 shadow-sm p-3 mb-3" style="border-radius: 12px;">
+    <h6 class="font-weight-bold mb-3 text-secondary">Current Items Under Assembly</h6>
+
+    @if (!Model.OrderItems.Any(oi => oi.Status != ItemStatus.Cancelled))
+    {
+        <p class="text-muted text-center py-3 m-0 small">No active orders placed yet. Tap Back below to add some items!</p>
+    }
+    else
+    {
+        <div class="d-flex flex-column" style="gap: 15px;">
+            @foreach (var item in Model.OrderItems.Where(oi => oi.Status != ItemStatus.Cancelled))
+            {
+                var uniqueProgressId = "progress_" + item.Id;
+                var uniqueCancelBtnId = "cancelBtn_" + item.Id;
+                var elapsedSeconds = (DateTime.Now - item.CreatedAt).TotalSeconds;
+                var remainingSeconds = 30 - elapsedSeconds;
+
+                <div class="pb-2 border-bottom item-order-card">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong class="text-dark">@item.Quantity x @item.MenuItem?.Name</strong>
+                            @if (!string.IsNullOrEmpty(item.CustomerComment))
+                            {
+                                <small class="text-muted d-block italic font-xs" style="font-style: italic;">Note: "@item.CustomerComment"</small>
+                            }
+                            <span class="badge mt-1 font-weight-normal @(item.Status == ItemStatus.Pending ? "bg-warning text-dark" : "bg-light text-secondary border")">
+                                Status: @item.Status
+                            </span>
+                        </div>
+                        <span class="text-dark small font-weight-bold">Rs. @(item.Quantity * item.PriceAtOrder)</span>
+                    </div>
+
+                    @if (item.Status == ItemStatus.Pending && remainingSeconds > 0)
+                    {
+                        <div class="progress mt-2" style="height: 6px; background-color: #e9ecef; border-radius: 3px; overflow: hidden;">
+                            <div id="@uniqueProgressId" class="progress-bar-slider"
+                                 data-created="@item.CreatedAt.ToString("o")"
+                                 style="width: 100%; background-color: var(--accent-pink); height: 100%; transition: none;">
+                            </div>
+                        </div>
+
+                        <button id="@uniqueCancelBtnId" class="btn btn-sm btn-outline-danger w-100 mt-2 py-1 small cancel-order-btn"
+                                onclick="cancelItemImmediately(@item.Id)">
+                            Cancel Order (Change Mind)
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+<div class="card border-0 shadow-sm p-3 mb-4" style="border-radius: 12px; background: #FFFDFD;">
+    <h6 class="font-weight-bold text-secondary mb-2">Automated Statement Summary</h6>
+    <div class="d-flex justify-content-between small mb-1"><span>Subtotal</span><span>Rs. @Model.SubTotal</span></div>
+    <div class="d-flex justify-content-between small mb-1"><span>Est. Tax</span><span>Rs. @Model.TaxAmount</span></div>
+    <hr class="my-2" />
+    <div class="d-flex justify-content-between font-weight-bold text-dark">
+        <h5 class="m-0 font-weight-bold">Total Bill</h5>
+        <h5 class="m-0 font-weight-bold">Rs. @Model.TotalBill</h5>
+    </div>
+</div>
+
+@if (Model.Status == SessionStatus.Active)
+{
+    <div class="d-flex flex-column gap-2 mb-4">
+        <a href="/Customer/Menu" class="btn btn-outline-secondary py-2 font-weight-bold" style="border-radius: 8px;">← Add More Items</a>
+
+        <div class="card border-0 bg-light p-3 mt-2" style="border-radius: 8px;">
+            <span class="small font-weight-bold text-dark d-block text-center mb-2">Ready to Finish & Get Bill?</span>
+            <div class="row g-2">
+                <div class="col-6">
+                    <form asp-action="CompleteSession" method="post"><input type="hidden" name="method" value="Cash" /><button type="submit" class="btn btn-pink w-100 small">💵 Pay via Cash</button></form>
+                </div>
+                <div class="col-6">
+                    <form asp-action="CompleteSession" method="post"><input type="hidden" name="method" value="Card" /><button type="submit" class="btn btn-pink w-100 small">💳 Pay via Card</button></form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-success text-center py-3" style="border-radius: 12px;">
+        🎉 <strong>Receipt sent to Counter!</strong><br />
+        <span class="small">Payment selection: <strong>@Model.PreferredPayment</strong>. Your waiter is arriving shortly. Thank you!</span>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const progressBars = document.querySelectorAll('.progress-bar-slider');
+
+            progressBars.forEach(bar => {
+                const createdTimeStr = bar.getAttribute('data-created');
+                const createdTime = new Date(createdTimeStr).getTime();
+                const totalDuration = 30 * 1000;
+                const endTime = createdTime + totalDuration;
+
+                function updateProgress() {
+                    const now = new Date().getTime();
+                    const remainingTime = endTime - now;
+
+                            if (remainingTime <= 0) {
+            bar.style.width = "0%";
+
+            // Get the item ID directly out of the element id string (e.g., "progress_14" -> 14)
+            const itemId = bar.id.replace('progress_', '');
+
+            // Fire a background POST request to update the database state
+            fetch('/Customer/CommitItemToKitchen?orderItemId=' + itemId, {
+                method: 'POST'
+            }).then(response => response.json())
+              .then(data => {
+                  if(data.success) {
+                      // Smoothly reload the UI view layout so the item shows up as "Ordered"
+                      location.reload();
+                  }
+              });
+
+            const itemCard = bar.closest('.item-order-card');
+            if (itemCard) {
+                const cancelBtn = itemCard.querySelector('.cancel-order-btn');
+                if (cancelBtn) cancelBtn.remove();
+
+                const progressContainer = bar.parentElement;
+                if (progressContainer) progressContainer.remove();
+            }
+            return;
+        }
+
+                    const percentage = (remainingTime / totalDuration) * 100;
+                    bar.style.width = percentage + "%";
+
+                    requestAnimationFrame(updateProgress);
+                }
+
+                updateProgress();
+            });
+
+            // If there are any pending items active on screen, refresh exactly when the earliest one expires
+            if(progressBars.length > 0) {
+                setTimeout(function() {
+                    location.reload();
+                }, 30500);
+            }
+        });
+
+        function cancelItemImmediately(id) {
+            if(confirm("Are you sure you want to cancel this item?")) {
+                // Post form routing execution targeting your Customer controller item removal
+                var form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/Customer/CancelItem?orderItemId=' + id;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+    </script>
+}

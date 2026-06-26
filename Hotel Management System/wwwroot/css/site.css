@@ -1,0 +1,160 @@
+/* Custom Color Variables - Ancient Pink Aesthetic */
+:root {
+    --primary-pink: #D4A5A5;
+    --accent-pink: #FF92A4;
+    --dark-neutral: #333333;
+    --light-bg: #FAFAFA;
+    --white: #FFFFFF;
+    --border-color: #EAEAEA;
+    --success-green: #4CAF50;
+    --warning-yellow: #FFC107;
+}
+
+/* Base Reset & Fonts */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--light-bg);
+    color: var(--dark-neutral);
+    margin: 0;
+    padding: 0;
+}
+
+/* --- DESKTOP ADMIN SIDEBAR LAYOUT --- */
+.admin-wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    width: 260px;
+    background-color: var(--white);
+    border-right: 1px solid var(--border-color);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-brand {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--dark-neutral);
+    margin-bottom: 30px;
+    border-bottom: 2px solid var(--primary-pink);
+    padding-bottom: 10px;
+}
+
+.sidebar-menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    flex-grow: 1;
+}
+
+.sidebar-item a {
+    display: block;
+    padding: 12px 15px;
+    color: var(--dark-neutral);
+    text-decoration: none;
+    border-radius: 8px;
+    margin-bottom: 5px;
+    transition: all 0.2s ease;
+}
+
+    .sidebar-item a:hover, .sidebar-item.active a {
+        background-color: var(--primary-pink);
+        color: var(--white);
+    }
+
+.admin-content {
+    flex-grow: 1;
+    padding: 30px;
+    background-color: var(--light-bg);
+}
+
+/* --- DASHBOARD CARDS --- */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: var(--white);
+    padding: 20px;
+    border-radius: 12px;
+    border-left: 5px solid var(--accent-pink);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+}
+
+    .stat-card h3 {
+        margin: 0 0 10px 0;
+        font-size: 0.9rem;
+        color: #888888;
+        text-transform: uppercase;
+    }
+
+    .stat-card .value {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: var(--dark-neutral);
+    }
+
+/* --- MOBILE OPTIMIZED LAYOUT --- */
+.mobile-container {
+    max-width: 480px;
+    margin: 0 auto;
+    background-color: var(--white);
+    min-height: 100vh;
+    box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+}
+
+.mobile-header {
+    background-color: var(--white);
+    border-bottom: 1px solid var(--border-color);
+    padding: 15px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.mobile-body {
+    flex-grow: 1;
+    padding: 15px;
+    padding-bottom: 80px; /* Space for bottom navigation */
+}
+
+/* Buttons */
+.btn-pink {
+    background-color: var(--primary-pink);
+    color: var(--white);
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+    .btn-pink:hover {
+        background-color: var(--accent-pink);
+        color: var(--white);
+    }
+
+/* 30 Second Cancel Progress Bar Slider */
+.cancel-progress-bar {
+    width: 100%;
+    background-color: #eee;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.cancel-progress-fill {
+    height: 6px;
+    background-color: var(--accent-pink);
+    width: 100%;
+    transition: width 30s linear;
+}

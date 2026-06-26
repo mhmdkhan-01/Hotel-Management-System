@@ -1,0 +1,91 @@
+﻿@model IEnumerable<Hotel_Management_System.Models.Order>
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Waiter Panel";
+    ViewData["HeaderTitle"] = "🏃 Floor Overview";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <small class="text-muted fw-bold">Live Floor Status</small>
+    <button class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="location.reload();">🔄 Refresh</button>
+</div>
+
+<!-- Active Table Loops -->
+<div class="d-flex flex-column gap-3">
+    @if (!Model.Any())
+    {
+        <div class="text-center py-5 bg-white rounded shadow-sm">
+            <p class="text-muted m-0 small">All tables are currently empty or inactive.</p>
+        </div>
+    }
+
+    @foreach (var order in Model)
+    {
+        <div class="card border-0 shadow-sm p-3" style="border-radius: 12px; background: white;">
+            <!-- Table Header Row -->
+            <div class="d-flex justify-content-between align-items-center pb-2 mb-2 border-bottom">
+                <h5 class="font-weight-bold m-0 text-dark">Table @order.Table?.TableNumber</h5>
+                <span class="badge @(order.Status == SessionStatus.Finished ? "bg-warning text-dark" : "bg-success text-white") small">
+                    @order.Status
+                </span>
+            </div>
+
+            <!-- Urgent Payment Requests Notification -->
+            @if (order.Status == SessionStatus.Finished)
+            {
+                <div class="alert alert-warning p-2 mb-2 small text-center" style="border-radius: 8px;">
+                    💰 <strong>Billing Request:</strong> Customer wants to pay via <strong>@order.PreferredPayment</strong>.<br />
+                    <strong class="d-block mt-1">Total: Rs. @order.TotalBill</strong>
+                    <form asp-action="ClearPaymentAlert" method="post" class="mt-2">
+                        <input type="hidden" name="orderId" value="@order.Id" />
+                        <button type="submit" class="btn btn-sm btn-dark w-100 py-1">Confirm Payment Collected</button>
+                    </form>
+                </div>
+            }
+
+            <!-- Items status inside this table order session -->
+            <div class="d-flex flex-column gap-2 mt-1">
+                @foreach (var item in order.OrderItems.Where(oi => oi.Status != ItemStatus.Cancelled))
+                {
+                    <div class="d-flex justify-content-between align-items-center small py-1">
+                        <div>
+                            <span class="fw-bold text-dark">@item.Quantity x @item.MenuItem?.Name</span>
+                            @if (!string.IsNullOrEmpty(item.CustomerComment))
+                            {
+                                <small class="text-muted d-block" style="font-style: italic;">"@item.CustomerComment"</small>
+                            }
+                        </div>
+
+                        <!-- Action state mapping -->
+                        <div>
+                            @if (item.Status == ItemStatus.Cooked)
+                            {
+                                <form asp-action="ServeItem" method="post" class="d-inline">
+                                    <input type="hidden" name="orderItemId" value="@item.Id" />
+                                    <button type="submit" class="btn btn-sm btn-pink px-2 py-1 font-xs fw-bold text-white animate-pulse">
+                                        🛎️ Deliver Item
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="badge bg-light text-secondary border font-weight-normal">
+                                    @item.Status
+                                </span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        // Auto check for food ready notifications every 20 seconds
+        setInterval(function() {
+            location.reload();
+        }, 20000);
+    </script>
+}

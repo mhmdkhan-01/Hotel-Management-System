@@ -1,0 +1,117 @@
+﻿@model Hotel_Management_System.ViewModels.CustomerMenuViewModel
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Menu";
+    ViewData["HeaderTitle"] = "Table #" + Model.TableNumber + " - Menu";
+}
+
+<div class="mb-3 overflow-auto d-flex pb-2" style="white-space: nowrap; gap: 8px; -webkit-overflow-scrolling: touch;">
+    <a href="@Url.Action("Menu", new { categoryId = (int?)null, sortOrder = Model.SortOrder })" 
+       class="btn @(Model.SelectedCategoryId == null ? "btn-pink" : "btn-outline-secondary") btn-sm rounded-pill px-3">
+        All Items
+    </a>
+    @foreach (var cat in Model.Categories)
+    {
+        <a href="@Url.Action("Menu", new { categoryId = cat.Id, sortOrder = Model.SortOrder })" 
+           class="btn @(Model.SelectedCategoryId == cat.Id ? "btn-pink" : "btn-outline-secondary") btn-sm rounded-pill px-3">
+            @cat.Name
+        </a>
+    }
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <small class="text-muted">Showing @Model.MenuItems.Count items</small>
+    <!-- Sorting Selector -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <small class="text-muted">Showing @Model.MenuItems.Count items</small>
+        <select class="form-select form-select-sm w-auto" onchange="location = this.value;">
+            <!---->
+            <option value="@Url.Action("Menu", new { categoryId = Model.SelectedCategoryId, sortOrder = "" })"
+                    selected="@(string.IsNullOrEmpty(Model.SortOrder) ? "selected" : null)">Default Sorting</option>
+
+            <option value="@Url.Action("Menu", new { categoryId = Model.SelectedCategoryId, sortOrder = "price_low" })"
+                    selected="@(Model.SortOrder == "price_low" ? "selected" : null)">Price: Low to High</option>
+
+            <option value="@Url.Action("Menu", new { categoryId = Model.SelectedCategoryId, sortOrder = "price_high" })"
+                    selected="@(Model.SortOrder == "price_high" ? "selected" : null)">Price: High to Low</option>
+        </select>
+    </div>
+</div>
+
+<div class="row g-3">
+    @foreach (var item in Model.MenuItems)
+    {
+        <div class="col-12">
+            <div class="card border-0 shadow-sm p-2 d-flex flex-row align-items-center" style="border-radius: 12px; gap: 12px;">
+                <img src="@item.ImageUrl" alt="@item.Name" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px;" />
+                <div class="flex-grow-1">
+                    <h6 class="m-0 font-weight-bold text-dark">@item.Name</h6>
+                    <small class="text-muted d-block text-truncate" style="max-width: 180px;">@item.Description</small>
+                    <span class="text-dark font-weight-bold small d-block mt-1">Rs. @item.Price</span>
+                </div>
+                <button class="btn btn-sm btn-pink rounded-circle" style="width: 36px; height: 36px; p-0" 
+                        onclick="openOrderModal(@item.Id, '@item.Name', @item.Price)">
+                    +
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@if (Model.CurrentSessionItems.Any())
+{
+    <div class="fixed-bottom p-3 bg-white border-top shadow-lg d-flex justify-content-between align-items-center mx-auto" style="max-width: 480px; border-top-left-radius: 16px; border-top-right-radius: 16px;">
+        <div>
+            <small class="text-muted d-block">Running Bill Total</small>
+            <strong class="text-dark">Rs. @Model.TotalBillSoFar</strong>
+        </div>
+        <a href="/Customer/OrderStatus" class="btn btn-pink px-4">View Active Session Details</a>
+    </div>
+}
+
+<div class="modal fade" id="orderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered p-3">
+        <div class="modal-content border-0" style="border-radius: 16px;">
+            <div class="modal-header border-0">
+                <h5 class="modal-title font-weight-bold" id="modalItemName">Confirm Your Selection</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form asp-action="AddToOrder" method="post">
+                <div class="modal-body py-1">
+                    <input type="hidden" name="menuItemId" id="modalItemId" />
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="text-secondary font-weight-bold">Quantity</span>
+                        <div class="d-flex align-items-center" style="gap: 10px;">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="adjustQty(-1)">-</button>
+                            <input type="number" name="quantity" id="modalQty" value="1" min="1" class="form-control form-control-sm text-center border-0 font-weight-bold" style="width: 40px;" readonly />
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="adjustQty(1)">+</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label class="small text-secondary font-weight-bold mb-1">SPECIAL NOTES (E.g., Less spicy, no onions)</label>
+                        <input type="text" name="customerComment" class="form-control form-control-sm" placeholder="Any requests for the chef?" maxlength="200" />
+                    </div>
+                </div>
+                <div class="modal-footer border-0 p-3">
+                    <button type="submit" class="btn btn-pink w-100 py-2">Add to Order Session</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openOrderModal(id, name, price) {
+        document.getElementById('modalItemId').value = id;
+        document.getElementById('modalItemName').innerText = "Add " + name;
+        document.getElementById('modalQty').value = 1;
+        new bootstrap.Modal(document.getElementById('orderModal')).show();
+    }
+    function adjustQty(amount) {
+        var qtyInput = document.getElementById('modalQty');
+        var val = parseInt(qtyInput.value) + amount;
+        if(val >= 1) qtyInput.value = val;
+    }
+</script>
