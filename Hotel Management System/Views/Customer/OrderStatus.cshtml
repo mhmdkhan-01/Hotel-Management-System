@@ -41,7 +41,7 @@
                     {
                         <div class="progress mt-2" style="height: 6px; background-color: #e9ecef; border-radius: 3px; overflow: hidden;">
                             <div id="@uniqueProgressId" class="progress-bar-slider"
-                                 data-created="@item.CreatedAt.ToString("o")"
+                                 data-created="@item.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss")"
                                  style="width: 100%; background-color: var(--accent-pink); height: 100%; transition: none;">
                             </div>
                         </div>
@@ -101,7 +101,12 @@ else
 
             progressBars.forEach(bar => {
                 const createdTimeStr = bar.getAttribute('data-created');
-                const createdTime = new Date(createdTimeStr).getTime();
+
+                // 🛠️ Mobile Engine Safe Replacement: Converts format safely across iOS and Android browsers
+                const safeDateStr = createdTimeStr.replace(/-/g, '/').replace('T', ' ');
+                const createdTime = new Date(safeDateStr).getTime();
+
+                // Keep total sync duration at 30 seconds to match server logic
                 const totalDuration = 30 * 1000;
                 const endTime = createdTime + totalDuration;
 
@@ -109,33 +114,43 @@ else
                     const now = new Date().getTime();
                     const remainingTime = endTime - now;
 
-                            if (remainingTime <= 0) {
-            bar.style.width = "0%";
+                    if (isNaN(remainingTime)) {
+                        bar.style.width = "0%";
+                        return;
+                    }
 
-            // Get the item ID directly out of the element id string (e.g., "progress_14" -> 14)
-            const itemId = bar.id.replace('progress_', '');
+                    if (remainingTime <= 0) {
+                        bar.style.width = "0%";
 
-            // Fire a background POST request to update the database state
-            fetch('/Customer/CommitItemToKitchen?orderItemId=' + itemId, {
-                method: 'POST'
-            }).then(response => response.json())
-              .then(data => {
-                  if(data.success) {
-                      // Smoothly reload the UI view layout so the item shows up as "Ordered"
-                      location.reload();
-                  }
-              });
+                        const itemId = bar.id.replace('progress_', '');
+                        const baseUrl = window.location.origin;
+                        const requestUrl = `${baseUrl}/Customer/CommitItemToKitchen?orderItemId=${itemId}`;
 
-            const itemCard = bar.closest('.item-order-card');
-            if (itemCard) {
-                const cancelBtn = itemCard.querySelector('.cancel-order-btn');
-                if (cancelBtn) cancelBtn.remove();
+                        // 🌟 FIXED SYNTAX: Added missing comma right here
+                        fetch(requestUrl, {
+                            method: 'POST'
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if(data.success) {
+                                location.reload();
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Auto-commit failed:", err);
+                            location.reload();
+                        });
 
-                const progressContainer = bar.parentElement;
-                if (progressContainer) progressContainer.remove();
-            }
-            return;
-        }
+                        const itemCard = bar.closest('.item-order-card');
+                        if (itemCard) {
+                            const cancelBtn = itemCard.querySelector('.cancel-order-btn');
+                            if (cancelBtn) cancelBtn.remove();
+
+                            const progressContainer = bar.parentElement;
+                            if (progressContainer) progressContainer.remove();
+                        }
+                        return;
+                    }
 
                     const percentage = (remainingTime / totalDuration) * 100;
                     bar.style.width = percentage + "%";
@@ -146,17 +161,15 @@ else
                 updateProgress();
             });
 
-            // If there are any pending items active on screen, refresh exactly when the earliest one expires
             if(progressBars.length > 0) {
                 setTimeout(function() {
                     location.reload();
-                }, 30500);
+                }, 31000);
             }
         });
 
         function cancelItemImmediately(id) {
             if(confirm("Are you sure you want to cancel this item?")) {
-                // Post form routing execution targeting your Customer controller item removal
                 var form = document.createElement('form');
                 form.method = 'POST';
                 form.action = '/Customer/CancelItem?orderItemId=' + id;
