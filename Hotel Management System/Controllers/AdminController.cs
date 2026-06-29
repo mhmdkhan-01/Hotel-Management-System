@@ -232,5 +232,29 @@ namespace Hotel_Management_System.Controllers
             }
             return RedirectToAction(nameof(ManageWaiters));
         }
+        [HttpPost]
+        public async Task<IActionResult> ForceDeleteSession(int orderId)
+        {
+            var order = await _context.Orders
+                .Include(o => o.OrderItems)
+                .FirstOrDefaultAsync(o => o.Id == orderId);
+
+            if (order != null)
+            {
+                // 1. Remove child order lines first to avoid foreign key errors
+                if (order.OrderItems.Any())
+                {
+                    _context.OrderItems.RemoveRange(order.OrderItems);
+                }
+
+                // 2. Drop the parent order session row
+                _context.Orders.Remove(order);
+
+                await _context.SaveChangesAsync();
+            }
+
+            // Redirect straight back to your refreshing dashboard route
+            return RedirectToAction("Index");
+        }
     }
 }

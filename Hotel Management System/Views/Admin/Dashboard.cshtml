@@ -5,11 +5,15 @@
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2 class="font-weight-bold m-0">Performance Overview</h2>
+    <div class="d-flex align-items-center gap-3">
+        <h2 class="font-weight-bold m-0">Performance Overview</h2>
+        <span class="badge bg-light text-secondary border px-2 py-1.5 small" style="border-radius: 6px; font-weight: 500;">
+            🔄 Refreshing in: <span id="refresh-timer" class="fw-bold text-dark">10</span>s
+        </span>
+    </div>
     <span class="badge bg-white text-dark border p-2 shadow-sm">📍 Live Operational Mode (Local Network)</span>
 </div>
 
-<!-- Main Business Analytics Cards -->
 <div class="dashboard-grid">
     <div class="stat-card">
         <h3>Earnings Today</h3>
@@ -26,7 +30,6 @@
 </div>
 
 <div class="row g-4">
-    <!-- Active Floor Tables Monitoring Panel -->
     <div class="col-lg-8">
         <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: white;">
             <h5 class="font-weight-bold text-dark mb-3">Live Active Table Sessions</h5>
@@ -64,17 +67,24 @@
                                 </td>
                                 <td class="fw-bold">Rs. @order.TotalBill</td>
                                 <td class="text-end">
-                                    @if (order.Status == SessionStatus.Finished)
-                                    {
-                                        <form asp-action="CloseTableSession" method="post" class="d-inline">
-                                            <input type="hidden" name="orderId" value="@order.Id" />
-                                            <button type="submit" class="btn btn-sm btn-pink py-1 px-3">Received Payment (Clear Table)</button>
-                                        </form>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted font-xs">Awaiting Customer Checkout</span>
-                                    }
+                                    <div class="d-flex justify-content-end gap-1">
+                                        @if (order.Status == SessionStatus.Finished)
+                                        {
+                                            <form asp-action="CloseTableSession" method="post" class="d-inline">
+                                                <input type="hidden" name="orderId" value="@order.Id" />
+                                                <button type="submit" class="btn btn-sm btn-pink py-1 px-3">Received Payment (Clear Table)</button>
+                                            </form>
+                                        }
+                                        else
+                                        {
+                                            <span class="align-self-center text-muted font-xs me-2">Awaiting Customer Checkout</span>
+                                        }
+
+                                        <button type="button" class="btn btn-sm btn-outline-danger py-1 px-2 text-xs"
+                                                onclick="forceDeleteSession(@order.Id, '@order.Table?.TableNumber')">
+                                            ⚠️ Force Close
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -84,7 +94,6 @@
         </div>
     </div>
 
-    <!-- Inventory / Grocery Insights Section -->
     <div class="col-lg-4">
         <div class="card border-0 shadow-sm p-4 h-100" style="border-radius: 12px; background: white;">
             <h5 class="font-weight-bold text-dark mb-3">Top Moving Items (Grocery Insight)</h5>
@@ -107,3 +116,36 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // 🔄 10-Second Auto-Refresh Logic
+            let timeLeft = 10;
+            const timerDisplay = document.getElementById("refresh-timer");
+
+            if (timerDisplay) {
+                const countdown = setInterval(function () {
+                    timeLeft--;
+                    timerDisplay.textContent = timeLeft;
+
+                    if (timeLeft <= 0) {
+                        clearInterval(countdown);
+                        location.reload();
+                    }
+                }, 1000);
+            }
+        });
+
+        // 🗑️ JavaScript Handler to generate a rapid programmatic POST form to drop stuck sessions
+        function forceDeleteSession(orderId, tableNumber) {
+            if (confirm(`⚠️ Warning: Are you absolutely sure you want to force terminate and delete the session for Table ${tableNumber}? This will drop the session completely without completing payment logs.`)) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/Admin/ForceDeleteSession?orderId=' + orderId;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+    </script>
+}
