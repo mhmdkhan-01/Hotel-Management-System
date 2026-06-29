@@ -169,10 +169,11 @@ else
         });
 
         function cancelItemImmediately(id) {
+             const baseUrl = window.location.origin;
             if(confirm("Are you sure you want to cancel this item?")) {
                 var form = document.createElement('form');
                 form.method = 'POST';
-                form.action = '/Customer/CancelItem?orderItemId=' + id;
+                form.action = `${baseUrl}/Customer/CancelItem?orderItemId=` + id;
                 document.body.appendChild(form);
                 form.submit();
             }
