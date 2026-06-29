@@ -3,7 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Hotel_Management_System.Data;
 using Hotel_Management_System.Models;
 using Microsoft.EntityFrameworkCore.SqlServer;
+using Hotel_Management_System.Hubs;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSignalR();
 
 // 1. Add Connection String and DbContext
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -13,8 +17,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
 // 2. Add ASP.NET Core Identity Framework
-builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
-{
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => {
     // Keeping password rules basic and accessible for your staff setup
     options.Password.RequireDigit = true;
     options.Password.RequireLowercase = true;
@@ -26,8 +29,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 
 // 3. Configure Authentication Cookie redirection options
-builder.Services.ConfigureApplicationCookie(options =>
-{
+builder.Services.ConfigureApplicationCookie(options => {
     options.LoginPath = "/Account/Login";
     options.LogoutPath = "/Account/Logout";
     options.AccessDeniedPath = "/Account/AccessDenied";
@@ -45,7 +47,8 @@ using (var scope = app.Services.CreateScope())
     var services = scope.ServiceProvider;
     try
     {
-        await SeedData.Initialize(services);
+        // 🌟 FIXED: Added .GetAwaiter().GetResult() to prevent top-level compilation errors
+        SeedData.Initialize(services).GetAwaiter().GetResult();
     }
     catch (Exception ex)
     {
@@ -60,21 +63,25 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();
 }
+
 // 🌟 THE FIX: Only redirect to HTTPS if we are NOT in the Development environment
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+
 app.UseStaticFiles();
 
 app.UseRouting();
 
 app.UseAuthentication();
-app.UseAuthorization();
+var app2 = app.UseAuthorization();
 
 // 7. Route Mapping
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Customer}/{action=Index}/{id?}");
+
+app.MapHub<NotificationHub>("/notificationHub");
 
 app.Run();

@@ -1,0 +1,75 @@
+﻿@model Hotel_Management_System.Models.SystemSetting
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Global System Configurations";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="font-weight-bold m-0">System Configurations</h2>
+        <small class="text-muted">Manage global parameters, operational metadata, and dynamic localized tax calculations.</small>
+    </div>
+    <a href="/Admin/Index" class="btn btn-sm btn-outline-secondary px-3" style="border-radius: 8px;">← Return to Dashboard</a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-4" role="alert" style="border-radius: 10px;">
+        🎉 @TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-xl-7 col-lg-9 mx-auto">
+        <div class="card border-0 shadow-sm p-4" style="border-radius: 12px; background: white;">
+            <h5 class="font-weight-bold text-dark mb-4 pb-2 border-bottom">⚙️ Core Operational Bounds</h5>
+
+            <form asp-action="UpdateSettings" method="post" autocomplete="off">
+                <input type="hidden" asp-for="Id" />
+
+                <!-- Profile Parameter: Branding Configuration -->
+                <div class="mb-4">
+                    <label asp-for="HotelName" class="form-label small fw-bold text-secondary">Hotel / Venue Identity Name</label>
+                    <input type="text" asp-for="HotelName" class="form-control form-control-lg text-dark fw-bold"
+                           placeholder="e.g. Pearl Continental Hotel" style="border-radius: 8px; font-size: 1rem;" required />
+                    <span asp-validation-for="HotelName" class="text-danger small"></span>
+                    <div class="form-text font-xs text-muted">This alters customer-facing screens, mobile UI navigation headers, and prints.</div>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <!-- Profile Parameter: Cash Settlement Processing Fee Override -->
+                    <div class="col-md-6">
+                        <label asp-for="FixedTaxCashPercent" class="form-label small fw-bold text-secondary">Cash Payment Tax (%)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0" style="border-top-left-radius: 8px; border-bottom-left-radius: 8px;">%</span>
+                            <input type="number" step="0.01" asp-for="FixedTaxCashPercent" class="form-control text-dark"
+                                   style="border-top-right-radius: 8px; border-bottom-right-radius: 8px;" required />
+                        </div>
+                        <span asp-validation-for="FixedTaxCashPercent" class="text-danger small"></span>
+                        <div class="form-text font-xs text-muted">Applied when customer selects Cash payment.</div>
+                    </div>
+
+                    <!-- Profile Parameter: Card Settlement Processing Fee Override -->
+                    <div class="col-md-6">
+                        <label asp-for="FixedTaxCardPercent" class="form-label small fw-bold text-secondary">Digital Card Tax (%)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0" style="border-top-left-radius: 8px; border-bottom-left-radius: 8px;">%</span>
+                            <input type="number" step="0.01" asp-for="FixedTaxCardPercent" class="form-control text-dark"
+                                   style="border-top-right-radius: 8px; border-bottom-right-radius: 8px;" required />
+                        </div>
+                        <span asp-validation-for="FixedTaxCardPercent" class="text-danger small"></span>
+                        <div class="form-text font-xs text-muted">Applied when customer selects digital card swipe.</div>
+                    </div>
+                </div>
+
+                <hr class="my-4" />
+
+                <div class="d-flex gap-2 justify-content-end">
+                    <button type="reset" class="btn btn-light px-4 py-2" style="border-radius: 8px;">Reset Fields</button>
+                    <button type="submit" class="btn btn-pink px-5 py-2 font-weight-bold" style="border-radius: 8px;">💾 Apply Configurations</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

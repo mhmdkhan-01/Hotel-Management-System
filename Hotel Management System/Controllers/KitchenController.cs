@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Hotel_Management_System.Data;
+﻿using Hotel_Management_System.Data;
+using Hotel_Management_System.Hubs;
 using Hotel_Management_System.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Hotel_Management_System.Controllers
 {
@@ -10,10 +12,12 @@ namespace Hotel_Management_System.Controllers
     public class KitchenController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IHubContext<NotificationHub> _hubContext;
 
-        public KitchenController(ApplicationDbContext context)
+        public KitchenController(ApplicationDbContext context, IHubContext<NotificationHub> hubContext)
         {
             _context = context;
+            _hubContext = hubContext;
         }
 
         // 1. Live Kitchen Queue Screen
@@ -39,14 +43,16 @@ namespace Hotel_Management_System.Controllers
         {
             var item = await _context.OrderItems.FindAsync(orderItemId);
             if (item == null) return NotFound();
-
             // Guard rails to make sure status transitions stay logical
             if (item.Status != ItemStatus.Cancelled && item.Status != ItemStatus.Delivered)
             {
                 item.Status = newStatus;
                 await _context.SaveChangesAsync();
             }
-
+            if (newStatus == ItemStatus.Cooked)
+            {
+                await _hubContext.Clients.All.SendAsync("RefreshWaiterFloor");
+            }
             return RedirectToAction(nameof(Index));
         }
     }

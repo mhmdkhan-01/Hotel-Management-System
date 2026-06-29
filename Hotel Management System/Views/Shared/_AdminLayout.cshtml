@@ -14,10 +14,17 @@
                 🏨 HMS Desktop
             </div>
             <ul class="sidebar-menu">
-                <li class="sidebar-item"><a href="/Admin/Dashboard">📊 Dashboard</a></li>
-                <li class="sidebar-item"><a href="/Admin/ManageItems">🍔 Menu Items</a></li>
-                <li class="sidebar-item"><a href="/Admin/ManageWaiters">🏃 Manage Waiters</a></li>
-                <li class="sidebar-item"><a href="/Kitchen/Index">🍳 Kitchen Queue</a></li>
+                <li class="sidebar-item @(ViewContext.RouteData.Values["action"]?.ToString() == "Dashboard" ? "active" : "")">
+                    <a href="/Admin/Dashboard">📊 Dashboard</a>
+                </li>
+                <li class="sidebar-item @(ViewContext.RouteData.Values["action"]?.ToString() == "Settings" ? "active" : "")">
+                    <a href="/Admin/Settings">⚙️ System Settings</a>
+                </li>
+                <li class="sidebar-item @(ViewContext.RouteData.Values["action"]?.ToString() == "ManageItems" ? "active" : "")">
+                    <a href="/Admin/ManageItems">🍔 Menu Items</a>
+                </li>
+                <li class="sidebar-item @(ViewContext.RouteData.Values["action"]?.ToString() == "ManageWaiters" ? "active" : "")"><a href="/Admin/ManageWaiters">🏃 Manage Waiters</a></li>
+                <li class="sidebar-item @(ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")"><a href="/Kitchen/Index">🍳 Kitchen Queue</a></li>
             </ul>
             <div class="mt-auto">
                 <a href="/Account/Logout" class="btn btn-outline-danger w-100">Logout</a>

@@ -1,10 +1,12 @@
 ﻿using Hotel_Management_System.Data;
+using Hotel_Management_System.Hubs;
 using Hotel_Management_System.Models;
 using Hotel_Management_System.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.IO;
 
@@ -15,10 +17,12 @@ namespace Hotel_Management_System.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager; // Or IdentityUser depending on your Setup
-        public AdminController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+        private readonly IHubContext<NotificationHub> _hubContext;
+        public AdminController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IHubContext<NotificationHub> hubContext)
         {
             _context = context;
             _userManager = userManager;
+            _hubContext = hubContext;
         }
 
         // 1. Core Analytics Dashboard Home View
@@ -251,10 +255,57 @@ namespace Hotel_Management_System.Controllers
                 _context.Orders.Remove(order);
 
                 await _context.SaveChangesAsync();
+                await _hubContext.Clients.All.SendAsync("RefreshAdminDashboard");
             }
 
             // Redirect straight back to your refreshing dashboard route
-            return RedirectToAction("Index");
+            return RedirectToAction("Dashboard");
+        }
+        // GET: /Admin/Settings
+        [HttpGet]
+        public async Task<IActionResult> Settings()
+        {
+            // Fetch the single configuration tracking row. If it doesn't exist, create defaults.
+            var settings = await _context.SystemSettings.FirstOrDefaultAsync();
+            if (settings == null)
+            {
+                settings = new SystemSetting
+                {
+                    HotelName = "Grand Hotel & Restaurant",
+                    FixedTaxCashPercent = 5.0m,
+                    FixedTaxCardPercent = 10.0m
+                };
+                _context.SystemSettings.Add(settings);
+                await _context.SaveChangesAsync();
+            }
+
+            return View(settings);
+        }
+
+        // POST: /Admin/UpdateSettings
+        [HttpPost]
+        public async Task<IActionResult> UpdateSettings(SystemSetting model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View("Settings", model);
+            }
+
+            var existingSettings = await _context.SystemSettings.FirstOrDefaultAsync();
+            if (existingSettings != null)
+            {
+                // Mutate configuration parameters cleanly
+                existingSettings.HotelName = model.HotelName;
+                existingSettings.FixedTaxCashPercent = model.FixedTaxCashPercent;
+                existingSettings.FixedTaxCardPercent = model.FixedTaxCardPercent;
+
+                _context.SystemSettings.Update(existingSettings);
+                await _context.SaveChangesAsync();
+
+                TempData["SuccessMessage"] = "System configuration settings updated successfully!";
+            }
+
+            return RedirectToAction("Settings");
         }
     }
 }

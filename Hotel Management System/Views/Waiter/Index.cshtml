@@ -5,12 +5,22 @@
     ViewData["HeaderTitle"] = "🏃 Floor Overview";
 }
 
+<div id="live-calls-section" class="mb-4 d-none">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <small class="text-danger fw-bold d-flex align-items-center gap-1">
+            <span class="spinner-grow spinner-grow-sm text-danger" role="status" style="width: 8px; height: 8px;"></span>
+            Urgent Assistance Requests
+        </small>
+    </div>
+    <div id="waiter-call-list" class="d-flex flex-column gap-2">
+    </div>
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <small class="text-muted fw-bold">Live Floor Status</small>
     <button class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="location.reload();">🔄 Refresh</button>
 </div>
 
-<!-- Active Table Loops -->
 <div class="d-flex flex-column gap-3">
     @if (!Model.Any())
     {
@@ -22,7 +32,6 @@
     @foreach (var order in Model)
     {
         <div class="card border-0 shadow-sm p-3" style="border-radius: 12px; background: white;">
-            <!-- Table Header Row -->
             <div class="d-flex justify-content-between align-items-center pb-2 mb-2 border-bottom">
                 <h5 class="font-weight-bold m-0 text-dark">Table @order.Table?.TableNumber</h5>
                 <span class="badge @(order.Status == SessionStatus.Finished ? "bg-warning text-dark" : "bg-success text-white") small">
@@ -30,7 +39,6 @@
                 </span>
             </div>
 
-            <!-- Urgent Payment Requests Notification -->
             @if (order.Status == SessionStatus.Finished)
             {
                 <div class="alert alert-warning p-2 mb-2 small text-center" style="border-radius: 8px;">
@@ -43,7 +51,6 @@
                 </div>
             }
 
-            <!-- Items status inside this table order session -->
             <div class="d-flex flex-column gap-2 mt-1">
                 @foreach (var item in order.OrderItems.Where(oi => oi.Status != ItemStatus.Cancelled))
                 {
@@ -56,7 +63,6 @@
                             }
                         </div>
 
-                        <!-- Action state mapping -->
                         <div>
                             @if (item.Status == ItemStatus.Cooked)
                             {
@@ -82,10 +88,89 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <script>
-        // Auto check for food ready notifications every 20 seconds
-        setInterval(function() {
+        // Use local caching storage or default to prompt to name the tracking waiter profile identity
+        let waiterIdentityName = localStorage.getItem('waiter_name');
+        if (!waiterIdentityName) {
+        waiterIdentityName = prompt("Identify Yourself (Enter Name for Service Tracking):") || "Floor Waiter";
+        localStorage.setItem('waiter_name', waiterIdentityName);
+        }
+
+        const waiterHub = new signalR.HubConnectionBuilder()
+        .withUrl("/notificationHub")
+        .withAutomaticReconnect()
+        .build();
+
+        waiterHub.start().catch(err => console.error(err.toString()));
+
+        const callsSection = document.getElementById("live-calls-section");
+        const container = document.getElementById("waiter-call-list");
+
+        // 1. Listen for new calls incoming from customer tables
+        waiterHub.on("ReceiveWaiterCall", function (tableNumber, status) {
+        callsSection.classList.remove("d-none");
+
+        // Avoid adding double templates if it's already rendered on layout streams
+        if(document.getElementById(`call-row-${tableNumber}`)) return;
+
+        const callHtml = `
+        <div class="card border p-2 shadow-sm" id="call-row-${tableNumber}" style="border-radius: 8px; background: #FFFDFD;">
+        <div class="d-flex justify-content-between align-items-center">
+        <div>
+        <strong class="text-dark d-block small" style="font-size:0.9rem;">⚠️ Table ${tableNumber}</strong>
+        <span id="badge-assist-${tableNumber}" class="badge bg-danger text-xs text-white px-1.5 py-0.5" style="font-size:0.7rem;">${status}</span>
+        </div>
+        <div class="d-flex gap-1">
+        <button id="btn-attend-${tableNumber}" class="btn btn-xs btn-success text-xs py-1 px-2" onclick="attendTableCall('${tableNumber}')" style="font-size:0.75rem;">I'm Going</button>
+        <button class="btn btn-xs btn-light text-xs border py-1 px-2 text-secondary" onclick="clearTableCall('${tableNumber}')" style="font-size:0.75rem;">Done</button>
+        </div>
+        </div>
+        </div>`;
+        container.insertAdjacentHTML('beforeend', callHtml);
+
+        // Play a gentle subtle device system audio notification alert if desired
+        if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        });
+
+        // 2. Listen for status changes (when another waiter clicks "I'm Going")
+        waiterHub.on("ReceiveStatusUpdate", function (tableNumber, statusText) {
+        const badge = document.getElementById(`badge-assist-${tableNumber}`);
+        const attendBtn = document.getElementById(`btn-attend-${tableNumber}`);
+        if(badge) {
+        badge.textContent = statusText;
+        badge.classList.replace("bg-danger", "bg-secondary");
+        }
+        if(attendBtn) {
+        attendBtn.disabled = true;
+        attendBtn.innerText = "Assigned";
+        attendBtn.classList.replace("btn-success", "btn-light");
+        attendBtn.classList.add("text-muted");
+        }
+        });
+
+
+        // 3. Clear notification element once waiter completes task at table location
+        waiterHub.on("ReceiveCallCleared", function (tableNumber) {
+        const targetRow = document.getElementById(`call-row-${tableNumber}`);
+        if(targetRow) targetRow.remove();
+
+        if(container.children.length === 0) {
+        callsSection.classList.add("d-none");
+        }
+        });
+
+        function attendTableCall(tableNumber) {
+        waiterHub.invoke("AttendTable", tableNumber, waiterIdentityName).catch(err => console.error(err));
+        }
+
+        function clearTableCall(tableNumber) {
+        waiterHub.invoke("ClearTableCall", tableNumber).catch(err => console.error(err));
+        }
+        //4 
+        waiterHub.on("RefreshWaiterFloor", function(){
             location.reload();
-        }, 10000);
+        });
+        
     </script>
 }

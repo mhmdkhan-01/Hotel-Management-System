@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Hotel_Management_System.Data;
+﻿using Hotel_Management_System.Data;
+using Hotel_Management_System.Hubs;
 using Hotel_Management_System.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Hotel_Management_System.Controllers
 {
@@ -10,10 +12,11 @@ namespace Hotel_Management_System.Controllers
     public class WaiterController : Controller
     {
         private readonly ApplicationDbContext _context;
-
-        public WaiterController(ApplicationDbContext context)
+        private readonly IHubContext<NotificationHub> _hubContext;
+        public WaiterController(ApplicationDbContext context, IHubContext<NotificationHub> hubContext)
         {
             _context = context;
+            _hubContext = hubContext;
         }
 
         // 1. Main Floor Monitor View
@@ -43,7 +46,8 @@ namespace Hotel_Management_System.Controllers
                 item.Status = ItemStatus.Delivered;
                 await _context.SaveChangesAsync();
             }
-
+            await _hubContext.Clients.All.SendAsync("RefreshWaiterFloor");
+            await _hubContext.Clients.All.SendAsync("RefreshAdminDashboard");
             return RedirectToAction(nameof(Index));
         }
 
@@ -65,6 +69,9 @@ namespace Hotel_Management_System.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+
+                await _hubContext.Clients.All.SendAsync("RefreshWaiterFloor");
+                await _hubContext.Clients.All.SendAsync("RefreshAdminDashboard");
             }
 
             return RedirectToAction(nameof(Index));

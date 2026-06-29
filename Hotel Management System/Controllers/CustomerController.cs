@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Hotel_Management_System.Data;
+﻿using Hotel_Management_System.Data;
+using Hotel_Management_System.Hubs;
 using Hotel_Management_System.Models;
 using Hotel_Management_System.ViewModels;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 
 namespace Hotel_Management_System.Controllers
 {
@@ -10,9 +12,12 @@ namespace Hotel_Management_System.Controllers
     {
         private readonly ApplicationDbContext _context;
 
-        public CustomerController(ApplicationDbContext context)
+        private readonly IHubContext<NotificationHub> _hubContext;
+
+        public CustomerController(ApplicationDbContext context, IHubContext<NotificationHub> hubContext)
         {
             _context = context;
+            _hubContext = hubContext;
         }
 
         // 1. QR Code Entry point: /Customer/Index?tableNumber=X
@@ -138,6 +143,8 @@ namespace Hotel_Management_System.Controllers
             // Recalculate bill running sums
             await RecalculateBill(orderId);
 
+            await _hubContext.Clients.All.SendAsync("RefreshAdminDashboard");
+            await _hubContext.Clients.All.SendAsync("RefreshWaiterFloor");
             return RedirectToAction(nameof(OrderStatus));
         }
 
@@ -145,13 +152,43 @@ namespace Hotel_Management_System.Controllers
         [HttpGet]
         public async Task<IActionResult> OrderStatus()
         {
-            if (!Request.Cookies.TryGetValue("ActiveOrderId", out string? orderIdStr)) return BadRequest();
+            if (!Request.Cookies.TryGetValue("ActiveOrderId", out string? orderIdStr))
+                return RedirectToAction("Index", "Customer"); // Or wherever you want them to start an order
+
             int orderId = int.Parse(orderIdStr!);
 
             var order = await _context.Orders
                 .Include(o => o.OrderItems)
                 .ThenInclude(oi => oi.MenuItem)
                 .FirstOrDefaultAsync(o => o.Id == orderId);
+
+            // 💡 Optional Safety Check: If someone cleared the DB or cookie is old, handle it cleanly
+            if (order == null)
+            {
+                // Option A: Initialize an empty order placeholder so the view still renders nicely
+                order = new Hotel_Management_System.Models.Order { SubTotal = 0, OrderItems = new List<OrderItem>() };
+
+                // Option B: Clear the invalid cookie and redirect them back to menu initialization
+                // Response.Cookies.Delete("ActiveOrderId");
+                // return RedirectToAction("Menu");
+            }
+
+            var settings = await _context.SystemSettings.FirstOrDefaultAsync();
+            if (settings != null)
+            {
+                decimal cashtax = settings.FixedTaxCashPercent;
+                decimal cardtax = settings.FixedTaxCardPercent;
+
+                ViewBag.cashtax = cashtax;
+                ViewBag.cardtax = cardtax;
+
+                // Use the safe fallback if order was null
+                decimal cashTaxAmount = (order.SubTotal * cashtax) / 100;
+                decimal cardTaxAmount = (order.SubTotal * cardtax) / 100;
+
+                ViewBag.cashtaxamount = cashTaxAmount;
+                ViewBag.cardtaxamount = cardTaxAmount;
+            }
 
             return View(order);
         }
@@ -169,7 +206,10 @@ namespace Hotel_Management_System.Controllers
                 item.Status = ItemStatus.Cancelled;
                 await _context.SaveChangesAsync();
                 await RecalculateBill(item.OrderId);
-                return Json(new { success = true });
+
+                await _hubContext.Clients.All.SendAsync("RefreshAdminDashboard");
+                await _hubContext.Clients.All.SendAsync("RefreshWaiterFloor");
+                return RedirectToAction(nameof(Menu));
             }
 
             return Json(new { success = false, message = "Too late! Item is already sent to the kitchen." });
@@ -188,6 +228,8 @@ namespace Hotel_Management_System.Controllers
                 order.Status = SessionStatus.Finished; // Changes state to let Admin know
                 order.PreferredPayment = method;
                 await _context.SaveChangesAsync();
+                await _hubContext.Clients.All.SendAsync("RefreshAdminDashboard");
+                await _hubContext.Clients.All.SendAsync("RefreshWaiterFloor");
             }
 
             return RedirectToAction(nameof(OrderStatus));
@@ -235,6 +277,11 @@ namespace Hotel_Management_System.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+                // ... after database _context.SaveChangesAsync() occurs successfully:
+                await _hubContext.Clients.All.SendAsync("RefreshAdminDashboard");
+                await _hubContext.Clients.All.SendAsync("RefreshWaiterFloor");
+                await _hubContext.Clients.All.SendAsync("RefreshKitchenDashboard");
+
                 return Json(new { success = true });
             }
 

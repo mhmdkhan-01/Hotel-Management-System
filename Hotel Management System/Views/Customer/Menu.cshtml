@@ -4,7 +4,42 @@
     ViewData["Title"] = "Menu";
     ViewData["HeaderTitle"] = "Table #" + Model.TableNumber + " - Menu";
 }
+<div class="card border-0 shadow-sm p-3 mb-3 text-center" style="border-radius: 12px; background: #FFF5F5;">
+    <span class="small d-block text-muted mb-2">Need assistance with your setup or ordering?</span>
+    <button id="call-waiter-btn" class="btn btn-danger w-100 font-weight-bold py-2" style="border-radius: 8px;" onclick="triggerLiveWaiterCall()">
+        🔔 Call Waiter to Table
+    </button>
+    <div id="call-status-msg" class="small text-success mt-2 font-weight-bold d-none">
+        ✓ Signal transmitted! A waiter is on their way.
+    </div>
+</div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+<script>
+    // Extract table parameter dynamically out of the active URL string parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const tableNum = urlParams.get('tableNumber') || "1";
+
+    const connection = new signalR.HubConnectionBuilder()
+    .withUrl("/notificationHub")
+    .withAutomaticReconnect()
+    .build();
+
+    connection.start().catch(err => console.error(err.toString()));
+
+    function triggerLiveWaiterCall() {
+    const btn = document.getElementById("call-waiter-btn");
+    const msg = document.getElementById("call-status-msg");
+
+    // Execute background memory pipeline transmit execution loop
+    connection.invoke("CallWaiter", tableNum).then(() => {
+    btn.disabled = true;
+    btn.classList.replace("btn-danger", "btn-secondary");
+    btn.innerText = "Waiter Signalled";
+    msg.classList.remove("d-none");
+    }).catch(err => console.error(err.toString()));
+    }
+</script>
 <div class="mb-3 overflow-auto d-flex pb-2" style="white-space: nowrap; gap: 8px; -webkit-overflow-scrolling: touch;">
     <a href="@Url.Action("Menu", new { categoryId = (int?)null, sortOrder = Model.SortOrder })" 
        class="btn @(Model.SelectedCategoryId == null ? "btn-pink" : "btn-outline-secondary") btn-sm rounded-pill px-3">

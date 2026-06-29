@@ -3,6 +3,22 @@
     Layout = "_MobileLayout";
     ViewData["Title"] = "Session Status";
     ViewData["HeaderTitle"] = "Active Table Order Summary";
+
+    // 1. Extract raw configuration percentages safely
+    decimal cashtaxPercent = ViewBag.cashtax ?? 0;
+    decimal cardtaxPercent = ViewBag.cardtax ?? 0;
+
+    // 2. Extract calculated exact financial currency values safely
+    decimal cashtaxamount = ViewBag.cashtaxamount ?? 0;
+    decimal cardtaxamount = ViewBag.cardtaxamount ?? 0;
+
+    // 🌟 FIX: Extract SubTotal safely using a null-conditional operator (?.)
+    // If Model is null, it treats SubTotal as 0 instead of crashing your app!
+    decimal currentSubTotal = Model?.SubTotal ?? 0;
+
+    // 3. Compute accurate finalized bill projections using the safe subtotal
+    decimal cashbill = currentSubTotal + cashtaxamount;
+    decimal cardbill = currentSubTotal + cardtaxamount;
 }
 
 <div class="card border-0 shadow-sm p-3 mb-3" style="border-radius: 12px;">
@@ -58,13 +74,39 @@
 </div>
 
 <div class="card border-0 shadow-sm p-3 mb-4" style="border-radius: 12px; background: #FFFDFD;">
-    <h6 class="font-weight-bold text-secondary mb-2">Automated Statement Summary</h6>
-    <div class="d-flex justify-content-between small mb-1"><span>Subtotal</span><span>Rs. @Model.SubTotal</span></div>
-    <div class="d-flex justify-content-between small mb-1"><span>Est. Tax</span><span>Rs. @Model.TaxAmount</span></div>
-    <hr class="my-2" />
-    <div class="d-flex justify-content-between font-weight-bold text-dark">
-        <h5 class="m-0 font-weight-bold">Total Bill</h5>
-        <h5 class="m-0 font-weight-bold">Rs. @Model.TotalBill</h5>
+    <h6 class="font-weight-bold text-secondary mb-3">Automated Statement Summary</h6>
+
+    <div class="d-flex justify-content-between small mb-2">
+        <span class="text-muted">Subtotal</span>
+        <span class="fw-bold text-dark">Rs. @Model.SubTotal</span>
+    </div>
+
+    <div class="row g-2 mb-3">
+        <div class="col-6">
+            <div class="p-2 rounded bg-light border-start border-success" style="border-width: 3px !important;">
+                <small class="text-muted d-block font-xs">💵 Cash Tax (@cashtaxPercent%)</small>
+                <span class="fw-bold text-success small">Rs. @cashtaxamount</span>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="p-2 rounded bg-light border-start border-primary" style="border-width: 3px !important;">
+                <small class="text-muted d-block font-xs">💳 Card Tax (@cardtaxPercent%)</small>
+                <span class="fw-bold text-primary small">Rs. @cardtaxamount</span>
+            </div>
+        </div>
+    </div>
+
+    <hr class="my-2 text-muted opacity-25" />
+
+    <div class="d-flex flex-column gap-1 pt-1">
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="small fw-bold text-secondary">Total (if Cash):</span>
+            <span class="h5 m-0 font-weight-bold text-success">Rs. @cashbill</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mt-1">
+            <span class="small fw-bold text-secondary">Total (if Card):</span>
+            <span class="h5 m-0 font-weight-bold text-primary">Rs. @cardbill</span>
+        </div>
     </div>
 </div>
 
@@ -77,10 +119,16 @@
             <span class="small font-weight-bold text-dark d-block text-center mb-2">Ready to Finish & Get Bill?</span>
             <div class="row g-2">
                 <div class="col-6">
-                    <form asp-action="CompleteSession" method="post"><input type="hidden" name="method" value="Cash" /><button type="submit" class="btn btn-pink w-100 small">💵 Pay via Cash</button></form>
+                    <form asp-action="CompleteSession" method="post">
+                        <input type="hidden" name="method" value="Cash" />
+                        <button type="submit" class="btn btn-success w-100 py-2 small fw-bold" style="border-radius: 8px;">💵 Pay via Cash</button>
+                    </form>
                 </div>
                 <div class="col-6">
-                    <form asp-action="CompleteSession" method="post"><input type="hidden" name="method" value="Card" /><button type="submit" class="btn btn-pink w-100 small">💳 Pay via Card</button></form>
+                    <form asp-action="CompleteSession" method="post">
+                        <input type="hidden" name="method" value="Card" />
+                        <button type="submit" class="btn btn-primary w-100 py-2 small fw-bold" style="border-radius: 8px;">💳 Pay via Card</button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -101,12 +149,9 @@ else
 
             progressBars.forEach(bar => {
                 const createdTimeStr = bar.getAttribute('data-created');
-
-                // 🛠️ Mobile Engine Safe Replacement: Converts format safely across iOS and Android browsers
                 const safeDateStr = createdTimeStr.replace(/-/g, '/').replace('T', ' ');
                 const createdTime = new Date(safeDateStr).getTime();
 
-                // Keep total sync duration at 30 seconds to match server logic
                 const totalDuration = 30 * 1000;
                 const endTime = createdTime + totalDuration;
 
@@ -126,7 +171,6 @@ else
                         const baseUrl = window.location.origin;
                         const requestUrl = `${baseUrl}/Customer/CommitItemToKitchen?orderItemId=${itemId}`;
 
-                        // 🌟 FIXED SYNTAX: Added missing comma right here
                         fetch(requestUrl, {
                             method: 'POST'
                         })

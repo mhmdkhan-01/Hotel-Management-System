@@ -7,9 +7,6 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div class="d-flex align-items-center gap-3">
         <h2 class="font-weight-bold m-0">Performance Overview</h2>
-        <span class="badge bg-light text-secondary border px-2 py-1.5 small" style="border-radius: 6px; font-weight: 500;">
-            🔄 Refreshing in: <span id="refresh-timer" class="fw-bold text-dark">10</span>s
-        </span>
     </div>
     <span class="badge bg-white text-dark border p-2 shadow-sm">📍 Live Operational Mode (Local Network)</span>
 </div>
@@ -118,34 +115,35 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            // 🔄 10-Second Auto-Refresh Logic
-            let timeLeft = 10;
-            const timerDisplay = document.getElementById("refresh-timer");
+        // 🌟 Initialize SignalR Connection for Admin Dashboard
+        const adminHub = new signalR.HubConnectionBuilder()
+        .withUrl("/notificationHub")
+        .withAutomaticReconnect()
+        .build();
 
-            if (timerDisplay) {
-                const countdown = setInterval(function () {
-                    timeLeft--;
-                    timerDisplay.textContent = timeLeft;
+        adminHub.start()
+        .then(() => console.log("Admin Dashboard connected to Live Stream successfully."))
+        .catch(err => console.error("SignalR Connection Error: ", err));
 
-                    if (timeLeft <= 0) {
-                        clearInterval(countdown);
-                        location.reload();
-                    }
-                }, 1000);
-            }
+        // ⚡ LISTEN FOR REAL-TIME EVENTS: No more 10-second guessing!
+        adminHub.on("RefreshAdminDashboard", function () {
+        console.log("Live update received from server! Syncing dashboard...");
+        location.reload();
+        });
         });
 
-        // 🗑️ JavaScript Handler to generate a rapid programmatic POST form to drop stuck sessions
+        // Your existing Force Delete function remains unchanged
         function forceDeleteSession(orderId, tableNumber) {
-            if (confirm(`⚠️ Warning: Are you absolutely sure you want to force terminate and delete the session for Table ${tableNumber}? This will drop the session completely without completing payment logs.`)) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '/Admin/ForceDeleteSession?orderId=' + orderId;
-                document.body.appendChild(form);
-                form.submit();
-            }
+        if (confirm(`⚠️ Warning: Are you absolutely sure you want to force terminate and delete the session for Table ${tableNumber}?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/Admin/ForceDeleteSession?orderId=' + orderId;
+        document.body.appendChild(form);
+        form.submit();
+        }
         }
     </script>
 }

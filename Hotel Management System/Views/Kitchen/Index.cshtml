@@ -68,10 +68,17 @@
 </div>
 
 @section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
     <script>
-        // Automatically check the server for new orders every 30 seconds
-        setInterval(function() {
+        const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/notificationHub")
+        .withAutomaticReconnect()
+        .build();
+
+        connection.start().catch(err => console.error(err.toString()));
+        
+        connection.on("RefreshKitchenDashboard", function(){
             location.reload();
-        }, 10000);
+        });
     </script>
 }
