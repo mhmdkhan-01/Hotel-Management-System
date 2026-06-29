@@ -12,8 +12,7 @@
     decimal cashtaxamount = ViewBag.cashtaxamount ?? 0;
     decimal cardtaxamount = ViewBag.cardtaxamount ?? 0;
 
-    // 🌟 FIX: Extract SubTotal safely using a null-conditional operator (?.)
-    // If Model is null, it treats SubTotal as 0 instead of crashing your app!
+    // Extract SubTotal safely using a null-conditional operator (?.)
     decimal currentSubTotal = Model?.SubTotal ?? 0;
 
     // 3. Compute accurate finalized bill projections using the safe subtotal
@@ -33,12 +32,7 @@
         <div class="d-flex flex-column" style="gap: 15px;">
             @foreach (var item in Model.OrderItems.Where(oi => oi.Status != ItemStatus.Cancelled))
             {
-                var uniqueProgressId = "progress_" + item.Id;
-                var uniqueCancelBtnId = "cancelBtn_" + item.Id;
-                var elapsedSeconds = (DateTime.Now - item.CreatedAt).TotalSeconds;
-                var remainingSeconds = 30 - elapsedSeconds;
-
-                <div class="pb-2 border-bottom item-order-card">
+                <div class="pb-2 border-bottom item-order-card" id="item-card-@item.Id">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
                             <strong class="text-dark">@item.Quantity x @item.MenuItem?.Name</strong>
@@ -46,26 +40,25 @@
                             {
                                 <small class="text-muted d-block italic font-xs" style="font-style: italic;">Note: "@item.CustomerComment"</small>
                             }
-                            <span class="badge mt-1 font-weight-normal @(item.Status == ItemStatus.Pending ? "bg-warning text-dark" : "bg-light text-secondary border")">
+                            <span id="badge-status-@item.Id" class="badge mt-1 font-weight-normal @(item.Status == ItemStatus.Pending ? "bg-warning text-dark" : "bg-light text-secondary border")">
                                 Status: @item.Status
                             </span>
                         </div>
-                        <span class="text-dark small font-weight-bold">Rs. @(item.Quantity * item.PriceAtOrder)</span>
+                        <span class="text-dark small font-weight-bold">Rs. @((item.Quantity * item.PriceAtOrder).ToString("F2"))</span>
                     </div>
 
-                    @if (item.Status == ItemStatus.Pending && remainingSeconds > 0)
+                    @if (item.Status == ItemStatus.Pending)
                     {
-                        <div class="progress mt-2" style="height: 6px; background-color: #e9ecef; border-radius: 3px; overflow: hidden;">
-                            <div id="@uniqueProgressId" class="progress-bar-slider"
-                                 data-created="@item.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ss")"
-                                 style="width: 100%; background-color: var(--accent-pink); height: 100%; transition: none;">
-                            </div>
+                        <div class="d-flex gap-2 mt-2" id="actions-container-@item.Id">
+                            <button class="btn btn-sm btn-success flex-grow-1 py-1.5 small fw-bold"
+                                    onclick="confirmItemImmediately(@item.Id)">
+                                🎯 Confirm Order
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger py-1.5 small"
+                                    onclick="cancelItemImmediately(@item.Id)">
+                                Cancel
+                            </button>
                         </div>
-
-                        <button id="@uniqueCancelBtnId" class="btn btn-sm btn-outline-danger w-100 mt-2 py-1 small cancel-order-btn"
-                                onclick="cancelItemImmediately(@item.Id)">
-                            Cancel Order (Change Mind)
-                        </button>
                     }
                 </div>
             }
@@ -78,7 +71,7 @@
 
     <div class="d-flex justify-content-between small mb-2">
         <span class="text-muted">Subtotal</span>
-        <span class="fw-bold text-dark">Rs. @Model.SubTotal</span>
+        <span class="fw-bold text-dark">Rs. @currentSubTotal.ToString("F2")</span>
     </div>
 
     <div class="row g-2 mb-3">
@@ -172,7 +165,6 @@ else
         </div>
 
         @{
-            // LINQ grouping aggregates separate sub-orders of the same item into one row
             var groupedItems = Model.OrderItems
                 .Where(oi => oi.Status != ItemStatus.Cancelled)
                 .GroupBy(oi => new { oi.MenuItem?.Name, oi.PriceAtOrder })
@@ -191,7 +183,7 @@ else
                 <div class="d-flex justify-content-between align-items-start small" style="font-size: 0.85rem;">
                     <span style="flex: 2;" class="text-truncate pr-1">@group.Name</span>
                     <span style="flex: 1;" class="text-center">@group.TotalQuantity</span>
-                    <span style="flex: 1;" class="text-end">Rs. @group.TotalRowPrice</span>
+                    <span style="flex: 1;" class="text-end">Rs. @group.TotalRowPrice.ToString("F2")</span>
                 </div>
             }
         </div>
@@ -199,17 +191,16 @@ else
         <div style="border-top: 1px dashed #444;" class="my-3"></div>
 
         @{
-            // 🌟 FIXED: Comparing directly against the PaymentMethod Enum value instead of using string comparison
             bool isCard = Model.PreferredPayment == PaymentMethod.Card;
             decimal activeTaxAmt = isCard ? cardtaxamount : cashtaxamount;
             decimal activeTaxPct = isCard ? cardtaxPercent : cashtaxPercent;
-            decimal finalBillAmt = (Model?.SubTotal ?? 0) + activeTaxAmt;
+            decimal finalBillAmt = currentSubTotal + activeTaxAmt;
         }
 
         <div class="d-flex flex-column gap-1 small">
             <div class="d-flex justify-content-between">
                 <span>Subtotal:</span>
-                <span>Rs. @Model.SubTotal</span>
+                <span>Rs. @currentSubTotal.ToString("F2")</span>
             </div>
             <div class="d-flex justify-content-between">
                 <span>Tax (@activeTaxPct%):</span>
@@ -239,76 +230,35 @@ else
 
 @section Scripts {
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const progressBars = document.querySelectorAll('.progress-bar-slider');
+        // 🚀 Triggers immediate user-driven manual kitchen synchronization
+        function confirmItemImmediately(itemId) {
+            const baseUrl = window.location.origin;
+            const requestUrl = `${baseUrl}/Customer/CommitItemToKitchen?orderItemId=${itemId}`;
 
-            progressBars.forEach(bar => {
-                const createdTimeStr = bar.getAttribute('data-created');
-                const safeDateStr = createdTimeStr.replace(/-/g, '/').replace('T', ' ');
-                const createdTime = new Date(safeDateStr).getTime();
+            // Lock panel interface from accepting multi-clicks during connection load
+            const container = document.getElementById(`actions-container-${itemId}`);
+            if (container) container.style.pointerEvents = 'none';
 
-                const totalDuration = 30 * 1000;
-                const endTime = createdTime + totalDuration;
-
-                function updateProgress() {
-                    const now = new Date().getTime();
-                    const remainingTime = endTime - now;
-
-                    if (isNaN(remainingTime)) {
-                        bar.style.width = "0%";
-                        return;
-                    }
-
-                    if (remainingTime <= 0) {
-                        bar.style.width = "0%";
-
-                        const itemId = bar.id.replace('progress_', '');
-                        const baseUrl = window.location.origin;
-                        const requestUrl = `${baseUrl}/Customer/CommitItemToKitchen?orderItemId=${itemId}`;
-
-                        fetch(requestUrl, {
-                            method: 'POST'
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if(data.success) {
-                                location.reload();
-                            }
-                        })
-                        .catch(err => {
-                            console.error("Auto-commit failed:", err);
-                            location.reload();
-                        });
-
-                        const itemCard = bar.closest('.item-order-card');
-                        if (itemCard) {
-                            const cancelBtn = itemCard.querySelector('.cancel-order-btn');
-                            if (cancelBtn) cancelBtn.remove();
-
-                            const progressContainer = bar.parentElement;
-                            if (progressContainer) progressContainer.remove();
-                        }
-                        return;
-                    }
-
-                    const percentage = (remainingTime / totalDuration) * 100;
-                    bar.style.width = percentage + "%";
-
-                    requestAnimationFrame(updateProgress);
-                }
-
-                updateProgress();
-            });
-
-            if(progressBars.length > 0) {
-                setTimeout(function() {
+            fetch(requestUrl, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
                     location.reload();
-                }, 31000);
-            }
-        });
+                } else {
+                    alert("Could not confirm item. Please try again.");
+                    if (container) container.style.pointerEvents = 'auto';
+                }
+            })
+            .catch(err => {
+                console.error("Manual commit error:", err);
+                location.reload();
+            });
+        }
 
         function cancelItemImmediately(id) {
-             const baseUrl = window.location.origin;
+            const baseUrl = window.location.origin;
             if(confirm("Are you sure you want to cancel this item?")) {
                 var form = document.createElement('form');
                 form.method = 'POST';
@@ -317,6 +267,7 @@ else
                 form.submit();
             }
         }
+
         function toggleReceipt(event) {
             event.preventDefault();
             const receipt = document.getElementById("digital-receipt");

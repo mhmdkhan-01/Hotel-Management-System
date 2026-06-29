@@ -262,31 +262,19 @@ namespace Hotel_Management_System.Controllers
         [HttpPost]
         public async Task<IActionResult> CommitItemToKitchen(int orderItemId)
         {
-            var item = await _context.OrderItems
-                .Include(oi => oi.Order)
-                .FirstOrDefaultAsync(oi => oi.Id == orderItemId);
+            var item = await _context.OrderItems.FindAsync(orderItemId);
+            if (item == null) return Json(new { success = false, message = "Item not found" });
 
-            if (item != null && item.Status == ItemStatus.Pending)
-            {
-                // Shifting from Pending (0) to Ordered (1)
-                item.Status = ItemStatus.Ordered;
+            // Move from Pending -> Ordered
+            item.Status = ItemStatus.Ordered;
+            await _context.SaveChangesAsync();
 
-                // Also ensure the main order session is marked Active
-                if (item.Order != null && item.Order.Status != SessionStatus.Active)
-                {
-                    item.Order.Status = SessionStatus.Active;
-                }
+            // Wakes up Admin and Waiter screens live!
+            await _hubContext.Clients.All.SendAsync("RefreshAdminDashboard");
+            await _hubContext.Clients.All.SendAsync("RefreshWaiterFloor");
+            await _hubContext.Clients.All.SendAsync("RefreshKitchenDashboard");
 
-                await _context.SaveChangesAsync();
-                // ... after database _context.SaveChangesAsync() occurs successfully:
-                await _hubContext.Clients.All.SendAsync("RefreshAdminDashboard");
-                await _hubContext.Clients.All.SendAsync("RefreshWaiterFloor");
-                await _hubContext.Clients.All.SendAsync("RefreshKitchenDashboard");
-
-                return Json(new { success = true });
-            }
-
-            return Json(new { success = false, message = "Item not found or already processed." });
+            return Json(new { success = true });
         }
     }
 }
