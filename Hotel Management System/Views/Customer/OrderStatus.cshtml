@@ -84,14 +84,14 @@
     <div class="row g-2 mb-3">
         <div class="col-6">
             <div class="p-2 rounded bg-light border-start border-success" style="border-width: 3px !important;">
-                <small class="text-muted d-block font-xs">💵 Cash Tax (@cashtaxPercent%)</small>
-                <span class="fw-bold text-success small">Rs. @cashtaxamount</span>
+                <small class="text-muted d-block font-xs">💵 Cash Tax (@cashtaxPercent.ToString("F2")%)</small>
+                <span class="fw-bold text-success small">Rs. @cashtaxamount.ToString("F2")</span>
             </div>
         </div>
         <div class="col-6">
             <div class="p-2 rounded bg-light border-start border-primary" style="border-width: 3px !important;">
-                <small class="text-muted d-block font-xs">💳 Card Tax (@cardtaxPercent%)</small>
-                <span class="fw-bold text-primary small">Rs. @cardtaxamount</span>
+                <small class="text-muted d-block font-xs">💳 Card Tax (@cardtaxPercent.ToString("F2")%)</small>
+                <span class="fw-bold text-primary small">Rs. @cardtaxamount.ToString("F2")</span>
             </div>
         </div>
     </div>
@@ -101,11 +101,11 @@
     <div class="d-flex flex-column gap-1 pt-1">
         <div class="d-flex justify-content-between align-items-center">
             <span class="small fw-bold text-secondary">Total (if Cash):</span>
-            <span class="h5 m-0 font-weight-bold text-success">Rs. @cashbill</span>
+            <span class="h5 m-0 font-weight-bold text-success">Rs. @cashbill.ToString("F2")</span>
         </div>
         <div class="d-flex justify-content-between align-items-center mt-1">
             <span class="small fw-bold text-secondary">Total (if Card):</span>
-            <span class="h5 m-0 font-weight-bold text-primary">Rs. @cardbill</span>
+            <span class="h5 m-0 font-weight-bold text-primary">Rs. @cardbill.ToString("F2")</span>
         </div>
     </div>
 </div>
@@ -139,6 +139,101 @@ else
     <div class="alert alert-success text-center py-3" style="border-radius: 12px;">
         🎉 <strong>Receipt sent to Counter!</strong><br />
         <span class="small">Payment selection: <strong>@Model.PreferredPayment</strong>. Your waiter is arriving shortly. Thank you!</span>
+    </div>
+    <div class="text-center mb-4">
+        <a href="#" class="text-decoration-none fw-bold small text-primary d-inline-flex align-items-center gap-1" onclick="toggleReceipt(event)">
+            📄 View Digital Receipt
+        </a>
+    </div>
+
+    <div id="digital-receipt" class="d-none card border shadow-sm p-4 mb-4 mx-auto" style="border-radius: 4px; max-width: 360px; background: #fff; font-family: 'Courier New', Courier, monospace; color: #222; border: 1px dashed #ccc !important;">
+
+        <div class="text-center mb-3">
+            <h4 class="fw-bold m-0 text-uppercase tracking-wide">@ViewBag.RestaurantName</h4>
+            <small class="text-muted d-block mt-1">Digital Bill Summary</small>
+            <div class="text-muted font-xs mt-1" style="font-size: 0.75rem;">
+                @DateTime.Now.ToString("dd-MMM-yyyy hh:mm tt")
+            </div>
+        </div>
+
+        <div style="border-top: 1px dashed #444;" class="my-2"></div>
+
+        <div class="d-flex justify-content-between small mb-2">
+            <span><strong>Table:</strong> @Model.Table?.TableNumber</span>
+            <span><strong>Session:</strong> #@Model.Id</span>
+        </div>
+
+        <div style="border-top: 1px dashed #ccc;" class="my-2"></div>
+
+        <div class="d-flex justify-content-between font-weight-bold small mb-1 text-muted">
+            <span style="flex: 2;">Item</span>
+            <span style="flex: 1;" class="text-center">Qty</span>
+            <span style="flex: 1;" class="text-end">Price</span>
+        </div>
+
+        @{
+            // LINQ grouping aggregates separate sub-orders of the same item into one row
+            var groupedItems = Model.OrderItems
+                .Where(oi => oi.Status != ItemStatus.Cancelled)
+                .GroupBy(oi => new { oi.MenuItem?.Name, oi.PriceAtOrder })
+                .Select(g => new
+                {
+                    Name = g.Key.Name ?? "Unknown Item",
+                    UnitPrice = g.Key.PriceAtOrder,
+                    TotalQuantity = g.Sum(oi => oi.Quantity),
+                    TotalRowPrice = g.Sum(oi => oi.Quantity * oi.PriceAtOrder)
+                });
+        }
+
+        <div class="d-flex flex-column gap-1">
+            @foreach (var group in groupedItems)
+            {
+                <div class="d-flex justify-content-between align-items-start small" style="font-size: 0.85rem;">
+                    <span style="flex: 2;" class="text-truncate pr-1">@group.Name</span>
+                    <span style="flex: 1;" class="text-center">@group.TotalQuantity</span>
+                    <span style="flex: 1;" class="text-end">Rs. @group.TotalRowPrice</span>
+                </div>
+            }
+        </div>
+
+        <div style="border-top: 1px dashed #444;" class="my-3"></div>
+
+        @{
+            // 🌟 FIXED: Comparing directly against the PaymentMethod Enum value instead of using string comparison
+            bool isCard = Model.PreferredPayment == PaymentMethod.Card;
+            decimal activeTaxAmt = isCard ? cardtaxamount : cashtaxamount;
+            decimal activeTaxPct = isCard ? cardtaxPercent : cashtaxPercent;
+            decimal finalBillAmt = (Model?.SubTotal ?? 0) + activeTaxAmt;
+        }
+
+        <div class="d-flex flex-column gap-1 small">
+            <div class="d-flex justify-content-between">
+                <span>Subtotal:</span>
+                <span>Rs. @Model.SubTotal</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span>Tax (@activeTaxPct%):</span>
+                <span>Rs. @activeTaxAmt.ToString("F2")</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span>Payment Mode:</span>
+                <span class="fw-bold text-uppercase">@Model.PreferredPayment</span>
+            </div>
+
+            <div style="border-top: 1px dashed #ccc;" class="my-2"></div>
+
+            <div class="d-flex justify-content-between font-weight-bold text-dark" style="font-size: 1.05rem;">
+                <span>TOTAL PAID:</span>
+                <span>Rs. @finalBillAmt.ToString("F2")</span>
+            </div>
+        </div>
+
+        <div style="border-top: 1px dashed #444;" class="my-3"></div>
+
+        <div class="text-center mt-2">
+            <p class="m-0 fw-bold small text-uppercase tracking-wider">Thank You For Dining With Us!</p>
+            <small class="text-muted" style="font-size:0.7rem;">Please visit us again.</small>
+        </div>
     </div>
 }
 
@@ -220,6 +315,16 @@ else
                 form.action = `${baseUrl}/Customer/CancelItem?orderItemId=` + id;
                 document.body.appendChild(form);
                 form.submit();
+            }
+        }
+        function toggleReceipt(event) {
+            event.preventDefault();
+            const receipt = document.getElementById("digital-receipt");
+            if (receipt.classList.contains("d-none")) {
+                receipt.classList.remove("d-none");
+                receipt.scrollIntoView({ behavior: 'smooth' });
+            } else {
+                receipt.classList.add("d-none");
             }
         }
     </script>

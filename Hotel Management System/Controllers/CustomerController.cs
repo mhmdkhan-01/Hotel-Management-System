@@ -176,6 +176,7 @@ namespace Hotel_Management_System.Controllers
             var settings = await _context.SystemSettings.FirstOrDefaultAsync();
             if (settings != null)
             {
+                ViewBag.RestaurantName = settings.HotelName ?? "Our Restaurant";
                 decimal cashtax = settings.FixedTaxCashPercent;
                 decimal cardtax = settings.FixedTaxCardPercent;
 
